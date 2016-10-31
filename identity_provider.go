@@ -368,7 +368,17 @@ func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
 				Value: session.UserEmail,
 			}},
 		})
+		attributes = append(attributes, Attribute{
+			FriendlyName: "mail",
+			Name:         "urn:oid:0.9.2342.19200300.100.1.3",
+			NameFormat:   "urn:oasis:names:tc:SAML:2.0:attrname-format:uri",
+			Values: []AttributeValue{{
+				Type:  "xs:string",
+				Value: session.UserEmail,
+			}},
+		})
 	}
+
 	if session.UserSurname != "" {
 		attributes = append(attributes, Attribute{
 			FriendlyName: "sn",
