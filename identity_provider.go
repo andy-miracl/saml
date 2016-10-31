@@ -480,6 +480,10 @@ func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
 		AttributeStatement: &AttributeStatement{
 			Attributes: attributes,
 		},
+		Ds:    "http://www.w3.org/2000/09/xmldsig#",
+		Samlp: "urn:oasis:names:tc:SAML:2.0:protocol",
+		Saml:  "urn:oasis:names:tc:SAML:2.0:assertion",
+		Xenc:  "http://www.w3.org/2001/04/xmlenc#",
 	}
 
 	return nil

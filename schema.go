@@ -136,6 +136,10 @@ type Assertion struct {
 	Conditions         *Conditions
 	AuthnStatement     *AuthnStatement
 	AttributeStatement *AttributeStatement
+	Ds                 string `xml:"xmlns:ds,attr"`
+	Saml               string `xml:"xmlns:saml,attr"`
+	Samlp              string `xml:"xmlns:samlp,attr"`
+	Xenc               string `xml:"xmlns:xenc,attr"`
 }
 
 func (a *Assertion) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
