@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -419,6 +420,8 @@ func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
 		})
 	}
 
+	remoteIp, _, _ := net.SplitHostPort(req.HTTPRequest.RemoteAddr)
+
 	req.Assertion = &Assertion{
 		ID:           id,
 		IssueInstant: TimeNow(),
@@ -438,7 +441,7 @@ func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
 			SubjectConfirmation: &SubjectConfirmation{
 				Method: "urn:oasis:names:tc:SAML:2.0:cm:bearer",
 				SubjectConfirmationData: SubjectConfirmationData{
-					Address:      req.HTTPRequest.RemoteAddr,
+					Address:      remoteIp,
 					InResponseTo: req.Request.ID,
 					NotOnOrAfter: TimeNow().Add(MaxIssueDelay),
 					Recipient:    req.ACSEndpoint.Location,
