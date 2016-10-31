@@ -25,7 +25,7 @@ type EntitiesDescriptor struct {
 type Metadata struct {
 	XMLName          xml.Name          `xml:"urn:oasis:names:tc:SAML:2.0:metadata EntityDescriptor"`
 	ValidUntil       time.Time         `xml:"validUntil,attr"`
-	CacheDuration    time.Duration     `xml:"cacheDuration,attr,omitempty"`
+	CacheDuration    string            `xml:"cacheDuration,attr,omitempty"`
 	EntityID         string            `xml:"entityID,attr"`
 	SPSSODescriptor  *SPSSODescriptor  `xml:"SPSSODescriptor"`
 	IDPSSODescriptor *IDPSSODescriptor `xml:"IDPSSODescriptor"`
