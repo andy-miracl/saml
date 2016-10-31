@@ -118,6 +118,7 @@ var StatusSuccess = "urn:oasis:names:tc:SAML:2.0:status:Success"
 //
 // See http://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf
 type EncryptedAssertion struct {
+	XMLName       xml.Name `xml:"urn:oasis:names:tc:SAML:2.0:assertion EncryptedAssertion"`
 	Assertion     *Assertion
 	EncryptedData []byte `xml:",innerxml"`
 }
