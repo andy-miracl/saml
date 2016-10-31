@@ -127,7 +127,7 @@ type EncryptedAssertion struct {
 // See http://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf
 type Assertion struct {
 	XMLName            xml.Name  `xml:"urn:oasis:names:tc:SAML:2.0:assertion Assertion"`
-	ID                 string    `xml:",attr"`
+	ID                 string    `xml:"xml:id,attr"`
 	IssueInstant       time.Time `xml:",attr"`
 	Version            string    `xml:",attr"`
 	Issuer             *Issuer   `xml:"urn:oasis:names:tc:SAML:2.0:assertion Issuer"`

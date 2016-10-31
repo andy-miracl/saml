@@ -338,7 +338,12 @@ func (req *IdpAuthnRequest) Validate() error {
 // MakeAssertion produces a SAML assertion for the
 // given request and assigns it to req.Assertion.
 func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
+
+	id := fmt.Sprintf("id-%x", randomBytes(20))
+
 	signatureTemplate := xmlsec.DefaultSignature([]byte(req.IDP.Certificate))
+	signatureTemplate.SignedInfo.Reference.URI = fmt.Sprintf("#%s", id)
+
 	attributes := []Attribute{}
 	if session.UserName != "" {
 		attributes = append(attributes, Attribute{
@@ -415,7 +420,7 @@ func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
 	}
 
 	req.Assertion = &Assertion{
-		ID:           fmt.Sprintf("id-%x", randomBytes(20)),
+		ID:           id,
 		IssueInstant: TimeNow(),
 		Version:      "2.0",
 		Issuer: &Issuer{
