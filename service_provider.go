@@ -53,7 +53,7 @@ const MaxIssueDelay = time.Second * 90
 const DefaultValidDuration = time.Hour * 24 * 2
 
 // DefaultCacheDuration is how long we ask the IDP to cache the SP metadata.
-const DefaultCacheDuration = "PT24H"
+const DefaultCacheDuration = "PT48H"
 
 // Metadata returns the service provider metadata
 func (sp *ServiceProvider) Metadata() *Metadata {

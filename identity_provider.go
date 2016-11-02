@@ -83,7 +83,7 @@ func (idp *IdentityProvider) Metadata() *Metadata {
 	return &Metadata{
 		EntityID:      idp.MetadataURL,
 		ValidUntil:    TimeNow().Add(DefaultValidDuration),
-		CacheDuration: DefaultValidDuration,
+		CacheDuration: DefaultCacheDuration,
 		IDPSSODescriptor: &IDPSSODescriptor{
 			ProtocolSupportEnumeration: "urn:oasis:names:tc:SAML:2.0:protocol",
 			KeyDescriptor: []KeyDescriptor{
