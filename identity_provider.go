@@ -434,6 +434,7 @@ func (req *IdpAuthnRequest) MakeAssertion(session *Session) error {
 
 	req.Assertion = &Assertion{
 		ID:           id,
+		XmlId:        id,
 		IssueInstant: TimeNow(),
 		Version:      "2.0",
 		Issuer: &Issuer{
