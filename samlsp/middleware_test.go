@@ -15,8 +15,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	. "gopkg.in/check.v1"
 
-	"github.com/crewjam/saml"
-	"github.com/crewjam/saml/testsaml"
+	"github.com/andy-miracl/saml"
+	"github.com/andy-miracl/saml/testsaml"
 )
 
 // Hook up gocheck into the "go test" runner.

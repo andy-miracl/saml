@@ -36,7 +36,7 @@ We will use `samlsp.Middleware` to wrap the endpoint we want to protect. Middlew
         "io/ioutil"
         "net/http"
 
-        "github.com/crewjam/saml/samlsp"
+        "github.com/andy-miracl/saml/samlsp"
     )
 
     func hello(w http.ResponseWriter, r *http.Request) {

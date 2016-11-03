@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/crewjam/saml"
+	"github.com/andy-miracl/saml"
 	"github.com/miracl/maas-sdk-go"
 	"github.com/zenazn/goji/web"
 )

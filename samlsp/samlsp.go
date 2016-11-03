@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/crewjam/saml"
+	"github.com/andy-miracl/saml"
 )
 
 // Options represents the parameters for creating a new middleware
