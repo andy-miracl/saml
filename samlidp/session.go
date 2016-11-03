@@ -1,17 +1,18 @@
 package samlidp
 
 import (
+	"bytes"
+	"compress/flate"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"text/template"
+	"net/url"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/crewjam/saml"
+	"github.com/miracl/maas-sdk-go"
 	"github.com/zenazn/goji/web"
 )
 
@@ -33,19 +34,49 @@ var sessionMaxAge = time.Hour
 // If neither credentials nor a valid session cookie exist, this function
 // sends a login form and returns nil.
 func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, req *saml.IdpAuthnRequest) *saml.Session {
-	// if we received login credentials then maybe we can create a session
-	if r.Method == "POST" && r.PostForm.Get("user") != "" {
+	mc, err := s.NewMfaClient()
+
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return nil
+	}
+
+	query := r.URL.Query()
+	code := query.Get("code")
+
+	if code != "" {
+		// we have a valid response from MFA
+
+		accessToken, jwt, err := mc.ValidateAuth(code)
+		if err != nil {
+			// if authorization code is invalid, redirect to index
+			http.Redirect(w, r, "/", 302)
+			return nil
+		}
+
+		// dump our claims for debugging
+		claims, _ := jwt.Claims()
+		fmt.Printf("Access token: %v\n", accessToken)
+		fmt.Printf("JTW payload: %+v\n", claims)
+
+		// Retrieve useir info from oidc server
+		userInfo, err := mc.GetUserUnfo(accessToken)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return nil
+		}
+		fmt.Printf("userInfo: %s,%s\n", userInfo.UserID, userInfo.Email)
+
+		// find our user in our store (this eventually will be LDAP)
 		user := User{}
-		if err := s.Store.Get(fmt.Sprintf("/users/%s", r.PostForm.Get("user")), &user); err != nil {
-			s.sendLoginForm(w, r, req, "Invalid username or password")
+		key := fmt.Sprintf("/users/%s", userInfo.UserID)
+		fmt.Printf("key: %+v\n", key)
+		if err := s.Store.Get(key, &user); err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return nil
 		}
 
-		if err := bcrypt.CompareHashAndPassword(user.HashedPassword, []byte(r.PostForm.Get("password"))); err != nil {
-			s.sendLoginForm(w, r, req, "Invalid username or password")
-			return nil
-		}
-
+		// create a new session for this authenticated and authorised user
 		session := &saml.Session{
 			ID:             base64.StdEncoding.EncodeToString(randomBytes(32)),
 			CreateTime:     saml.TimeNow(),
@@ -58,11 +89,14 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, req *saml.Id
 			UserSurname:    user.Surname,
 			UserGivenName:  user.GivenName,
 		}
+
+		// save the session
 		if err := s.Store.Put(fmt.Sprintf("/sessions/%s", session.ID), &session); err != nil {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return nil
 		}
 
+		// set the session cookie
 		http.SetCookie(w, &http.Cookie{
 			Name:     "session",
 			Value:    session.ID,
@@ -70,14 +104,25 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, req *saml.Id
 			HttpOnly: false,
 			Path:     "/",
 		})
+
+		// redirect back to our  sso endpoint (ultimately we can avoid this extra redirection)
+		url := query.Get("state")
+		if url == "" {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return nil
+		}
+		fmt.Printf("redirecting to sso: %v\n", url)
+		http.Redirect(w, r, url, http.StatusFound)
+
 		return session
 	}
 
+	// this request does not represent a  valid response from MFA
 	if sessionCookie, err := r.Cookie("session"); err == nil {
 		session := &saml.Session{}
 		if err := s.Store.Get(fmt.Sprintf("/sessions/%s", sessionCookie.Value), session); err != nil {
 			if err == ErrNotFound {
-				s.sendLoginForm(w, r, req, "")
+				s.sendLoginForm(mc, w, r, req)
 				return nil
 			}
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -85,46 +130,42 @@ func (s *Server) GetSession(w http.ResponseWriter, r *http.Request, req *saml.Id
 		}
 
 		if saml.TimeNow().After(session.ExpireTime) {
-			s.sendLoginForm(w, r, req, "")
+			s.sendLoginForm(mc, w, r, req)
 			return nil
 		}
 		return session
 	}
 
-	s.sendLoginForm(w, r, req, "")
+	s.sendLoginForm(mc, w, r, req)
 	return nil
 }
 
 // sendLoginForm produces a form which requests a username and password and directs the user
 // back to the IDP authorize URL to restart the SAML login flow, this time establishing a
 // session based on the credentials that were provided.
-func (s *Server) sendLoginForm(w http.ResponseWriter, r *http.Request, req *saml.IdpAuthnRequest, toast string) {
-	tmpl := template.Must(template.New("saml-post-form").Parse(`` +
-		`<html>` +
-		`<p>{{.Toast}}</p>` +
-		`<form method="post" action="{{.URL}}">` +
-		`<input type="text" name="user" placeholder="user" value="" />` +
-		`<input type="password" name="password" placeholder="password" value="" />` +
-		`<input type="hidden" name="SAMLRequest" value="{{.SAMLRequest}}" />` +
-		`<input type="hidden" name="RelayState" value="{{.RelayState}}" />` +
-		`<input type="submit" value="Log In" />` +
-		`</form>` +
-		`</html>`))
-	data := struct {
-		Toast       string
-		URL         string
-		SAMLRequest string
-		RelayState  string
-	}{
-		Toast:       toast,
-		URL:         req.IDP.SSOURL,
-		SAMLRequest: base64.StdEncoding.EncodeToString(req.RequestBuffer),
-		RelayState:  req.RelayState,
-	}
+func (s *Server) sendLoginForm(mc maas.Client, w http.ResponseWriter, r *http.Request, req *saml.IdpAuthnRequest) {
 
-	if err := tmpl.Execute(w, data); err != nil {
-		panic(err)
+	// deflate the SAMLRequest and encode it
+	var buffer bytes.Buffer
+	writer, _ := flate.NewWriter(&buffer, flate.BestCompression)
+	writer.Write(req.RequestBuffer)
+	writer.Close()
+	samlRequest := base64.StdEncoding.EncodeToString(buffer.Bytes())
+	fmt.Printf("SAMLRequest: %v\n", samlRequest)
+
+	// construct a url to callback to our sso endpoint
+	url, _ := url.Parse(req.IDP.SSOURL)
+	query := url.Query()
+	query.Add("SAMLRequest", samlRequest)
+	query.Add("RelayState", req.RelayState)
+	url.RawQuery = query.Encode()
+
+	authURL, err := mc.GetAuthRequestURL(url.String())
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
+	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
 // HandleLogin handles the `POST /login` and `GET /login` forms. If credentials are present
@@ -132,10 +173,6 @@ func (s *Server) sendLoginForm(w http.ResponseWriter, r *http.Request, req *saml
 // 200 OK and the JSON session object. For invalid credentials, the HTML login prompt form
 // is sent.
 func (s *Server) HandleLogin(c web.C, w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
 	session := s.GetSession(w, r, &saml.IdpAuthnRequest{IDP: &s.IDP})
 	if session == nil {
 		return

@@ -7,8 +7,16 @@ import (
 	"sync"
 
 	"github.com/crewjam/saml"
+	"github.com/miracl/maas-sdk-go"
 	"github.com/zenazn/goji/web"
 )
+
+type MfaOptions struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+	Backend      string
+}
 
 // Options represent the parameters to New() for creating a new IDP server
 type Options struct {
@@ -16,6 +24,7 @@ type Options struct {
 	Key         string
 	Certificate string
 	Store       Store
+	MfaOptions  MfaOptions
 }
 
 // Server represents an IDP server. The server provides the following URLs:
@@ -33,6 +42,7 @@ type Server struct {
 	idpConfigMu sync.RWMutex          // protects calls into the IDP
 	IDP         saml.IdentityProvider // the underlying IDP
 	Store       Store                 // the data store
+	opts        Options
 }
 
 // New returns a new Server
@@ -45,6 +55,7 @@ func New(opts Options) (*Server, error) {
 			SSOURL:           opts.URL + "/sso",
 			ServiceProviders: map[string]*saml.Metadata{},
 		},
+		opts:  opts,
 		Store: opts.Store,
 	}
 	s.IDP.SessionProvider = s
@@ -54,6 +65,15 @@ func New(opts Options) (*Server, error) {
 	}
 	s.InitializeHTTP()
 	return s, nil
+}
+
+func (server *Server) NewMfaClient() (maas.Client, error) {
+	return maas.NewClient(maas.Config{
+		ClientID:     server.opts.MfaOptions.ClientID,
+		ClientSecret: server.opts.MfaOptions.ClientSecret,
+		RedirectURI:  server.opts.MfaOptions.RedirectURL,
+		DiscoveryURI: server.opts.MfaOptions.Backend,
+	})
 }
 
 // InitializeHTTP sets up the HTTP handler for the server. (This function
