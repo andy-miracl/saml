@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crewjam/go-xmlsec"
+	"github.com/andy-miracl/go-xmlsec"
 	"github.com/crewjam/saml/testsaml"
 	"github.com/dgrijalva/jwt-go"
 	. "gopkg.in/check.v1"

@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/crewjam/go-xmlsec"
+	"github.com/andy-miracl/go-xmlsec"
 )
 
 // ServiceProvider implements SAML Service provider.
